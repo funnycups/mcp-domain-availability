@@ -170,12 +170,16 @@ uv run src/mcp_domain_availability/main.py
 
 ### Deploying with Docker to Google Cloud Run
 
-You can deploy this service to Google Cloud Run using the provided Dockerfile and deployment script.
+The MCP server supports two transport modes:
+- **stdio** (default): For Claude Desktop integration via stdin/stdout
+- **sse**: For HTTP/web deployments like Google Cloud Run
+
+When deploying to Cloud Run, the `MCP_TRANSPORT` environment variable must be set to `sse`.
 
 **Prerequisites:**
-- [Google Cloud SDK](https://cloud.google.com/sdk/docs/install) installed and authenticated (`gcloud auth login`).
-- [Docker](https://docs.docker.com/get-docker/) installed and running.
-- A Google Cloud Project with the Cloud Run and Container Registry APIs enabled.
+- [Google Cloud SDK](https://cloud.google.com/sdk/docs/install) installed and authenticated (`gcloud auth login`)
+- [Docker](https://docs.docker.com/get-docker/) installed and running
+- A Google Cloud Project with the Cloud Run and Container Registry APIs enabled
 
 #### Using the Deployment Script
 
@@ -186,39 +190,41 @@ The easiest way to deploy is to use the `deploy.sh` script.
 
 2.  **Run the script:**
     Make the script executable and run it.
-    ```sh
+```sh
     chmod +x deploy.sh
     ./deploy.sh
-    ```
-    The script will build the Docker image, push it to Google Container Registry, and deploy it to Cloud Run.
+```
+    The script will build the Docker image, push it to Google Container Registry, and deploy it to Cloud Run with `MCP_TRANSPORT=sse`.
 
 #### Manual Deployment
 
 Alternatively, you can run the commands manually.
 
 1.  **Set environment variables:**
-    ```sh
+```sh
     export PROJECT_ID="<YOUR_PROJECT_ID>"
-    export REGION="<YOUR_REGION>" # e.g., us-central1
+    export REGION="<YOUR_REGION>"
     export IMAGE="gcr.io/$PROJECT_ID/mcp-domain-availability:latest"
-    ```
+```
 
 2.  **Build and push the Docker image:**
-    ```sh
+```sh
     docker buildx build --platform linux/amd64 -t $IMAGE --push .
-    ```
+```
 
 3.  **Deploy to Google Cloud Run:**
-    ```sh
+```sh
     gcloud run deploy mcp-domain-availability \
       --image $IMAGE \
       --region $REGION \
       --platform managed \
       --allow-unauthenticated \
       --port 8080 \
+      --set-env-vars MCP_TRANSPORT=sse \
       --project $PROJECT_ID
-    ```
+```
 
+**Note:** For local Claude Desktop usage, no environment variables are needed. The server defaults to `stdio` transport mode.
 
 ### How It Works
 

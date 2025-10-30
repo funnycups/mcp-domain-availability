@@ -12,4 +12,5 @@ gcloud run deploy mcp-domain-availability \
     --platform managed \
     --allow-unauthenticated \
     --port 8080 \
+    --set-env-vars MCP_TRANSPORT=sse \
     --project $PROJECT_ID

@@ -18,7 +18,13 @@ except ImportError:
 
 from mcp.server.fastmcp import FastMCP
 
-mcp = FastMCP("Domain Availability Checker", host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+TRANSPORT_MODE = os.environ.get("MCP_TRANSPORT", "stdio")
+PORT = int(os.environ.get("PORT", 8080))
+
+if TRANSPORT_MODE == "sse":
+    mcp = FastMCP("Domain Availability Checker", host="0.0.0.0", port=PORT)
+else:
+    mcp = FastMCP("Domain Availability Checker")
 
 POPULAR_TLDS = [
     "com", "net", "org", "io", "ai", "app", "dev", "co", "xyz", "me", "info", "biz"
@@ -44,9 +50,7 @@ ALL_TLDS = list(set(POPULAR_TLDS + COUNTRY_TLDS + NEW_TLDS))
 
 TLD_MIN_LENGTH = {
     "com": 2, "net": 2, "org": 2, "info": 2, "biz": 3,
-
     "io": 2, "ai": 2, "co": 3, "me": 3,
-    
     "de": 2, "fr": 2, "it": 2, "es": 2, "nl": 3,
     "ch": 3, "at": 3, "be": 3, "dk": 3, "se": 3,
     "no": 3, "fi": 3, "pl": 3, "cz": 3, "pt": 3,
@@ -55,7 +59,6 @@ TLD_MIN_LENGTH = {
     "in": 3, "br": 3, "mx": 3, "ar": 3, "cl": 3,
     "pe": 3, "za": 3, "eg": 3, "ma": 3, "ng": 3,
     "ke": 3,
-    
     "app": 3, "dev": 3, "xyz": 3, "tech": 3,
     "online": 3, "site": 3, "website": 3, "store": 3,
     "shop": 3, "cloud": 3, "digital": 3, "blog": 3,
@@ -63,11 +66,9 @@ TLD_MIN_LENGTH = {
 }
 
 def get_min_length_for_tld(tld: str) -> int:
-    """Obtiene la longitud mínima requerida para un TLD"""
     return TLD_MIN_LENGTH.get(tld, 3)
 
 def is_valid_domain_name(base_name: str, tld: str) -> bool:
-    """Valida si un nombre de dominio cumple con las reglas del TLD"""
     min_length = get_min_length_for_tld(tld)
     if len(base_name) < min_length:
         return False
@@ -295,20 +296,6 @@ async def run_domain_checks(domain_part: str) -> Dict:
 
 @mcp.tool()
 async def check_domain(domain_query: str) -> Dict:
-    """
-    Check domain availability. 
-    
-    Usage examples:
-    - "mysite.com --domain" - checks exact domain
-    - "mysite --domain" - checks mysite across all popular TLDs
-    - "test.io --domain" - checks test.io exactly, plus test across all TLDs
-    
-    Args:
-        domain_query (str): Domain to check with --domain flag
-        
-    Returns:
-        Dict containing availability results for the domain and suggested alternatives
-    """
     if '--domain' not in domain_query:
         return {
             "error": "Please use --domain flag. Example: 'mysite.com --domain' or 'mysite --domain'"
@@ -336,4 +323,7 @@ async def check_domain(domain_query: str) -> Dict:
         }
     
 if __name__ == "__main__":
-     mcp.run(transport="sse")
+    if TRANSPORT_MODE == "sse":
+        mcp.run(transport="sse")
+    else:
+        mcp.run()
