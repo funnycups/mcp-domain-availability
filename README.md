@@ -14,9 +14,11 @@
 ### Features
 
 - **Domain Availability Checking**
+  - **Smart query mode**: Automatically detects if you want exact or comprehensive search
   - Check availability across 50+ popular TLD extensions
   - Support for popular (.com, .io, .ai), country (.us, .uk, .de), and new TLDs (.app, .dev, .tech)
   - Dual verification using DNS and WHOIS for accuracy
+  - **Token-efficient**: Only checks requested domain when full domain provided
   - Smart TLD suggestions organized by popularity
 
 - **Search Capabilities**
@@ -242,7 +244,12 @@ The tool combines results from these methods to provide accurate availability st
 
 | Tool Name | Description | Usage |
 |-----------|-------------|-------|
-| `check_domain` | Check domain availability with --domain flag | `mysite.com --domain` or `mysite --domain` |
+| `check_domain` | Check domain availability with smart defaults | `ai.de` (exact), `mysite` (all TLDs), or `mysite.com --all` (force all TLDs) |
+
+**Smart Behavior:**
+- **Full domain** (e.g., `ai.de`): Checks only that exact domain (fast, saves tokens)
+- **Domain name only** (e.g., `mysite`): Checks across all TLDs (comprehensive search)
+- **--all flag** (e.g., `mysite.com --all`): Forces checking all TLD variations even with full domain
 
 ### Supported TLD Categories
 
@@ -259,23 +266,33 @@ tech, online, site, website, store, shop, cloud, digital, blog, news & more.
 
 Here are examples of how to use the MCP Domain Availability Checker with Claude:
 
-#### Single Domain Check
+#### Exact Domain Check (Fast, Saves Tokens)
 
 ```
-Check if mysite.com is available using --domain
+Check if ai.de is available
 ```
+Returns only the availability status for `ai.de` without checking other TLDs.
 
-#### Domain Name Research
+#### Domain Name Research (Comprehensive)
 
 ```
-Check availability for "startup" across all TLDs using --domain
+Check availability for "startup" across all TLDs
 ```
+Automatically checks `startup.com`, `startup.io`, `startup.ai`, etc.
 
 #### Specific Domain Verification
 
 ```
-Is awesome.io available? Use --domain to check
+Is awesome.io available?
 ```
+Returns only the status for `awesome.io`.
+
+#### Force All TLD Check
+
+```
+Check mysite.com across all TLD variations using --all
+```
+Even though you provided a full domain, it will check all TLD variations for `mysite`.
 
 ### Output Format
 

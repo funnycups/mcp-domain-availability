@@ -229,7 +229,7 @@ async def check_multiple_domains(base_name: str, tlds: List[str]) -> List[Dict]:
     
     return valid_results
 
-async def run_domain_checks(domain_part: str) -> Dict:
+async def run_domain_checks(domain_part: str, exact_only: bool = False) -> Dict:
     base_name, existing_tld = extract_domain_parts(domain_part)
     
     results = {
@@ -240,6 +240,26 @@ async def run_domain_checks(domain_part: str) -> Dict:
         "total_checked": 0,
         "check_summary": {}
     }
+    
+    if exact_only:
+        if not existing_tld:
+            return {
+                "error": "Full domain name with TLD is required for exact query. Example: 'mysite.com'"
+            }
+        
+        exact_result = await check_domain_availability(f"{base_name}.{existing_tld}")
+        results["requested_domain"] = exact_result
+        results["total_checked"] = 1
+        
+        return {
+            "domain": exact_result['domain'],
+            "available": exact_result.get('available', False),
+            "dns_available": exact_result.get('dns_available', False),
+            "whois_available": exact_result.get('whois_available', False),
+            "valid": exact_result.get('valid', True),
+            "check_time": exact_result.get('check_time', '0s'),
+            "error": exact_result.get('error')
+        }
     
     invalid_for_tlds = []
     for tld in ALL_TLDS:
@@ -278,7 +298,7 @@ async def run_domain_checks(domain_part: str) -> Dict:
     results["available_domains"].sort(key=lambda x: x['domain'])
     results["unavailable_domains"].sort(key=lambda x: x['domain'])
     
-    popular_available = [r for r in results["available_domains"] 
+    popular_available = [r for r in results["available_domains"]
                        if any(r['domain'].endswith(f'.{tld}') for tld in POPULAR_TLDS)]
     
     results["check_summary"] = {
@@ -286,9 +306,9 @@ async def run_domain_checks(domain_part: str) -> Dict:
         "total_unavailable": len(results["unavailable_domains"]),
         "total_invalid": len(invalid_for_tlds),
         "popular_available": len(popular_available),
-        "country_available": len([r for r in results["available_domains"] 
+        "country_available": len([r for r in results["available_domains"]
                                 if any(r['domain'].endswith(f'.{tld}') for tld in COUNTRY_TLDS)]),
-        "new_tlds_available": len([r for r in results["available_domains"] 
+        "new_tlds_available": len([r for r in results["available_domains"]
                                  if any(r['domain'].endswith(f'.{tld}') for tld in NEW_TLDS)])
     }
     
@@ -296,27 +316,53 @@ async def run_domain_checks(domain_part: str) -> Dict:
 
 @mcp.tool()
 async def check_domain(domain_query: str) -> Dict:
-    if '--domain' not in domain_query:
-        return {
-            "error": "Please use --domain flag. Example: 'mysite.com --domain' or 'mysite --domain'"
-        }
+    """
+    Check domain availability with smart defaults.
     
-    domain_part = domain_query.replace('--domain', '').strip()
+    Behavior:
+    - Full domain (e.g., 'mysite.com') → checks only that exact domain (fast, saves tokens)
+    - Domain name only (e.g., 'mysite') → checks across all TLDs (comprehensive search)
+    - Use '--all' flag to force checking all TLD variations even with full domain
+    
+    Examples:
+    - 'ai.de' → checks only ai.de (exact query)
+    - 'mysite' → checks mysite.com, mysite.io, mysite.ai, etc. (all TLDs)
+    - 'mysite.com --all' → checks mysite across all TLDs including .com
+    """
+    has_all_flag = '--all' in domain_query
+    
+    domain_part = domain_query.replace('--all', '').strip()
     
     if not domain_part:
         return {
-            "error": "Please provide a domain name. Example: 'mysite.com --domain'"
+            "error": "Please provide a domain name.\n" +
+                    "Examples:\n" +
+                    "  'ai.de' - Check only ai.de (exact)\n" +
+                    "  'mysite' - Check mysite across all TLDs\n" +
+                    "  'mysite.com --all' - Check mysite across all TLDs"
         }
     
     base_name, existing_tld = extract_domain_parts(domain_part)
     
     if not base_name:
         return {
-            "error": "Invalid domain format. Example: 'mysite.com --domain'"
+            "error": "Invalid domain format.\n" +
+                    "Examples:\n" +
+                    "  'ai.de'\n" +
+                    "  'mysite'\n" +
+                    "  'mysite.com --all'"
         }
     
     try:
-        return await run_domain_checks(domain_part)
+        
+        if has_all_flag:
+            exact_only = False
+        elif existing_tld:
+            exact_only = True
+        else:
+            exact_only = False
+        
+        return await run_domain_checks(domain_part, exact_only=exact_only)
     except Exception as e:
         return {
             "error": f"Failed to check domain: {str(e)}"
